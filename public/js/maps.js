@@ -27,32 +27,6 @@ function initialize_gmaps() {
     position: myLatlng,
     title: 'Hello World!'
   });
-
-
-
-  // var hotelLocation = [40.705137, -74.007624];
-  // var restaurantLocations = [
-  //       [40.705137, -74.013940],
-  //       [40.708475, -74.010846]
-  //     ];
-  // var activityLocations = [
-  //       [40.716291, -73.995315],
-  //       [40.707119, -74.003602]
-  //     ];
-
-  // drawLocation(hotelLocation, {
-  //   icon: '/images/lodging_0star.png'
-  // });
-  // restaurantLocations.forEach(function(loc) {
-  //   drawLocation(loc, {
-  //     icon: '/images/restaurant.png'
-  //   });
-  // });
-  // activityLocations.forEach(function(loc) {
-  //   drawLocation(loc, {
-  //     icon: '/images/star-3.png'
-  //   });
-  // });
 }
 
 // export function to create and draw some locations on the map
@@ -60,6 +34,10 @@ function drawLocation (location, opts) {
   if (typeof opts !== 'object') {
     opts = {};
   }
+  if(opts.selectionType === 'Hotels') opts.icon = '/images/lodging_0star.png'; 
+  else if (opts.selectionType === 'Restaurants') opts.icon = '/images/restaurant.png'; 
+  else opts.icon = '/images/star-3.png'; 
+
   opts.position = new google.maps.LatLng(location[0], location[1]);
   opts.map = map;
   var marker = new google.maps.Marker(opts);
@@ -72,6 +50,7 @@ function drawLocation (location, opts) {
 $(document).ready(function() {
   initialize_gmaps();
   var currentDay = 0;
+  
   var newDay = function() {
     days.push({Hotels: [], Restaurants: [], Activities: []});
   }
@@ -107,6 +86,7 @@ $(document).ready(function() {
     }); 
   }; 
 
+  //adding an itinerary item
   $('#selector .btn').on('click', function() {
     var selectionType = $(this).prev().prev().text(); 
     var selectionName = $(this).prev()[0].value; 
@@ -126,7 +106,7 @@ $(document).ready(function() {
         return activity.name === selectionName; 
       })[0].place[0].location; 
     }
-    var thisMarker = drawLocation(selectionLocation, {name: selectionName, day: currentDay});
+    var thisMarker = drawLocation(selectionLocation, {name: selectionName, day: currentDay, selectionType: selectionType});
 
     //change div to li
     var node = '<div class="itinerary-item"><span class="title">' + selectionName +'</span><button class="btn btn-xs btn-danger remove btn-circle" data='+thisMarker.name+'>x</button></div>'; 
