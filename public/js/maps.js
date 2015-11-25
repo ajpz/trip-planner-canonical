@@ -1,5 +1,6 @@
 var map; 
 var days = [];
+var markers = [];
 
 function initialize_gmaps() {
 
@@ -55,7 +56,6 @@ function initialize_gmaps() {
 }
 
 // export function to create and draw some locations on the map
-var markers = [];
 function drawLocation (location, opts) {
   if (typeof opts !== 'object') {
     opts = {};
@@ -100,6 +100,13 @@ $(document).ready(function() {
     $("#day-title").find("span").text("Day "+(currentDay+1));
   }
 
+  var showMarkersForCurrentDay = function() {
+    markers.forEach(function(marker) {
+      if(marker.day === currentDay) marker.setMap(map); 
+      else marker.setMap(null); 
+    }); 
+  }; 
+
   $('#selector .btn').on('click', function() {
     var selectionType = $(this).prev().prev().text(); 
     var selectionName = $(this).prev()[0].value; 
@@ -128,18 +135,28 @@ $(document).ready(function() {
     drawDay(days[currentDay]);
   })
 
-
+  // deleting itinerary items individually
   $('#itin').on('click', '.btn', function() {
     var markerNameToRemove = $(this).prev()[0].textContent;
+    console.log(typeof markerNameToRemove, markerNameToRemove); 
+    var category = $(this).parent().parent().attr('id').split('-')[0]; 
+    if(category === 'hotel') category = 'Hotels'; 
+    else if (category === 'restaurant') category = 'Restaurants'; 
+    else category = 'Activities'; 
     var indexWeWant = [];
     markers.filter(function(marker, i) {
-      indexWeWant.push(i);
+      if(marker.name === markerNameToRemove) indexWeWant.push(i);
       return marker.name === markerNameToRemove;
     })[0].setMap(null);
     markers.splice(indexWeWant[0], 1);
+    days[currentDay][category] = days[currentDay][category].filter(function(item) {
+      console.log(item); 
+      return item.indexOf(markerNameToRemove) <= -1; 
+    }); 
     $(this).parent().remove();
   })
 
+  //add day
   $('.day-btn').last().on('click', function() {
     $('.current-day').removeClass('current-day');
     var newDayNumber =($(this).siblings().length+1);
@@ -149,8 +166,10 @@ $(document).ready(function() {
     $(this).before(btnNode);
     drawDay(days[currentDay]);
     updateDayHeader();
+    showMarkersForCurrentDay(); 
   })
 
+  //switching days
   $('.day-buttons').on('click', '.day-btn', function() {
     // console.log(this.innerText);
     if(this.innerText === '+') return;
@@ -159,10 +178,16 @@ $(document).ready(function() {
     currentDay = this.innerText - 1;
     drawDay(days[currentDay]);
     updateDayHeader();
+    showMarkersForCurrentDay(); 
   })
 
+  // remove entire day
   $('#day-title').find('.remove').on('click', function() {
     days[currentDay] = {Hotels: [], Restaurants: [], Activities: []};
+    markers = markers.filter(function(marker) {
+      if(marker.day === currentDay) marker.setMap(null); 
+      return marker.day !== currentDay; 
+    }); 
     drawDay(days[currentDay]);
   })
 
