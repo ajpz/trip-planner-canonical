@@ -1,6 +1,22 @@
 var map; 
 var days = [];
 var markers = [];
+var ghostMarkers = []; 
+
+/*
+  var infowindow = new google.maps.InfoWindow({
+    content: contentString
+  });
+
+  var marker = new google.maps.Marker({
+    position: uluru,
+    map: map,
+    title: 'Uluru (Ayers Rock)'
+  });
+  marker.addListener('click', function() {
+    infowindow.open(map, marker);
+  });
+*/
 
 function initialize_gmaps() {
 
@@ -21,16 +37,54 @@ function initialize_gmaps() {
   // initialize a new Google Map with the options
   // defined this map globally
   map = new google.maps.Map(map_canvas_obj, mapOptions);
+}
 
-  // add the marker to the map
-  var marker = new google.maps.Marker({
-    position: myLatlng,
-    title: 'Hello World!'
-  });
+function createInfoWindowContent (name, type) {
+  var content = ''; 
+  switch(type) {
+    case 'Hotels':
+      var thisHotel = all_hotels.filter(function(hotel) {
+        return hotel.name === name; 
+      })[0];     
+      content = '<h1>' + thisHotel.name + '</h1>' +
+                '<p>Rating: ' + thisHotel.num_stars + ' out of 5 stars</p>' + 
+                '<p>' + thisHotel.amenities + '</p>' +
+                '<p>' + thisHotel.place[0].address + '</p>' +
+                '<p>' + thisHotel.place[0].city + '</p>' +
+                '<p>' + thisHotel.place[0].state + '</p>' +
+                '<p>' + thisHotel.place[0].phone + '</p>';  
+      break;
+    case 'Restaurants':
+      var thisRes = all_restaurants.filter(function(restaurant) {
+        return restaurant.name === name; 
+      })[0];   
+      content = '<h1>' + thisRes.name + '</h1>' +
+                '<p>Price: ' + thisRes.price + ' on a scale of 4</p>' + 
+                '<p>' + thisRes.cuisine + '</p>' +
+                '<p>' + thisRes.place[0].address + '</p>' +
+                '<p>' + thisRes.place[0].city + '</p>' +
+                '<p>' + thisRes.place[0].state + '</p>' +
+                '<p>' + thisRes.place[0].phone + '</p>'; 
+      break;
+    case 'Activities':
+      var thisAct = all_activities.filter(function(activity) {
+        return activity.name === name; 
+      })[0];   
+      content = '<h1>' + thisAct.name + '</h1>' +
+                '<p>Age range: ' + thisAct.age_range + '</p>' + 
+                '<p>' + thisAct.place[0].address + '</p>' +
+                '<p>' + thisAct.place[0].city + '</p>' +
+                '<p>' + thisAct.place[0].state + '</p>' +
+                '<p>' + thisAct.place[0].phone + '</p>'; 
+      break; 
+  } 
+  return content; 
 }
 
 // export function to create and draw some locations on the map
 function drawLocation (location, opts) {
+
+
   if (typeof opts !== 'object') {
     opts = {};
   }
@@ -42,7 +96,25 @@ function drawLocation (location, opts) {
   opts.map = map;
   var marker = new google.maps.Marker(opts);
   marker.name = opts.name;
-  markers.push(marker);
+  
+
+  
+  var infowindow = new google.maps.InfoWindow({
+    content: createInfoWindowContent(marker.name, opts.selectionType)
+  });
+  marker.addListener('mouseover', function() {
+    infowindow.open(map, marker);
+  }); 
+  marker.addListener('mouseout', function() {
+    infowindow.close(); 
+  })
+
+  if(opts.hasOwnProperty('temporary')) {
+    ghostMarkers.push(marker); 
+    infowindow.open(map, marker); 
+  }
+  else markers.push(marker);
+
   return marker;
 }; 
 
@@ -50,7 +122,7 @@ function drawLocation (location, opts) {
 $(document).ready(function() {
   initialize_gmaps();
   var currentDay = 0;
-  
+
   var newDay = function() {
     days.push({Hotels: [], Restaurants: [], Activities: []});
   }
@@ -86,6 +158,13 @@ $(document).ready(function() {
     }); 
   }; 
 
+  var ghostBusters = function() {
+    ghostMarkers.forEach(function(marker) {
+      marker.setMap(null); 
+    })
+    ghostMarkers = [];
+  }
+
   //adding an itinerary item
   $('#selector .btn').on('click', function() {
     var selectionType = $(this).prev().prev().text(); 
@@ -106,13 +185,20 @@ $(document).ready(function() {
         return activity.name === selectionName; 
       })[0].place[0].location; 
     }
-    var thisMarker = drawLocation(selectionLocation, {name: selectionName, day: currentDay, selectionType: selectionType});
 
     //change div to li
-    var node = '<div class="itinerary-item"><span class="title">' + selectionName +'</span><button class="btn btn-xs btn-danger remove btn-circle" data='+thisMarker.name+'>x</button></div>'; 
+    
     // add to the current days itinerary
-    days[currentDay][selectionType].push(node);
-    drawDay(days[currentDay]);
+    if(selectionType === 'Hotels' && days[currentDay]['Hotels'].length) {
+      alert('You can\'t sleep in two beds in one day!'); 
+    } else if (selectionType === 'Restaurants' && days[currentDay]['Restaurants'].length > 2) {
+      alert('You can\'t eat in four restaurants in one day!'); 
+    } else {
+      var thisMarker = drawLocation(selectionLocation, {name: selectionName, day: currentDay, selectionType: selectionType});
+      var node = '<div class="itinerary-item"><span class="title">' + selectionName +'</span><button class="btn btn-xs btn-danger remove btn-circle" data='+thisMarker.name+'>x</button></div>'; 
+      days[currentDay][selectionType].push(node);
+      drawDay(days[currentDay]);
+    }
   })
 
   // deleting itinerary items individually
@@ -171,8 +257,33 @@ $(document).ready(function() {
     drawDay(days[currentDay]);
   })
 
+  // removing temporary markers
+  $('select').on('click', ghostBusters);  
 
+  // adding temporary hover markers over selections
+  $('select').hover(function() {
+    var selectionType = $(this).prev().text(); 
+    var selectionName = this.value; 
+    var selectionLocation; 
+
+    //array of two coordinates
+    if(selectionType === 'Hotels') {
+      selectionLocation = all_hotels.filter(function(hotel) {
+        return hotel.name === selectionName; 
+      })[0].place[0].location; 
+    } else if (selectionType === 'Restaurants') {
+      selectionLocation = all_restaurants.filter(function(restaurant) {
+        return restaurant.name === selectionName; 
+      })[0].place[0].location; 
+    } else {
+      selectionLocation = all_activities.filter(function(activity) {
+        return activity.name === selectionName; 
+      })[0].place[0].location; 
+    }
+    drawLocation(selectionLocation, {name: selectionName, day: currentDay, selectionType: selectionType, temporary: true});
+  }, ghostBusters); 
 });
+
 
 var styleArr = [{
   featureType: 'landscape',
