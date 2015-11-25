@@ -1,4 +1,5 @@
 var map; 
+var days = [];
 
 function initialize_gmaps() {
 
@@ -54,6 +55,7 @@ function initialize_gmaps() {
 }
 
 // export function to create and draw some locations on the map
+var markers = [];
 function drawLocation (location, opts) {
   if (typeof opts !== 'object') {
     opts = {};
@@ -61,13 +63,44 @@ function drawLocation (location, opts) {
   opts.position = new google.maps.LatLng(location[0], location[1]);
   opts.map = map;
   var marker = new google.maps.Marker(opts);
+  marker.name = opts.name;
+  markers.push(marker);
+  return marker;
 }; 
 
 // wait for document to load before making map
 $(document).ready(function() {
   initialize_gmaps();
+  var currentDay = 0;
+  var newDay = function() {
+    days.push({Hotels: [], Restaurants: [], Activities: []});
+  }
+  //newDay called once always, because there is one day at the start
+  newDay();
+  var drawDay = function(dayObj) {
+    $('#hotel-itin').empty();
+    $('#restaurant-itin').empty();
+    $('#activity-itin').empty();
+    if(dayObj.Hotels) {
+      $('#hotel-itin').append(dayObj.Hotels); 
+    }
+    if(dayObj.Restaurants.length) {
+      dayObj.Restaurants.forEach(function(restaurantSingle) {
+        $('#restaurant-itin').append(restaurantSingle);        
+      })
+    }
+    if(dayObj.Activities.length) {
+      dayObj.Activities.forEach(function(ActivitySingle) {
+        $('#activity-itin').append(ActivitySingle);        
+      })
+    }
+  }
 
-  $('.panel-body .btn').on('click', function() {
+  var updateDayHeader = function() {
+    $("#day-title").find("span").text("Day "+(currentDay+1));
+  }
+
+  $('#selector .btn').on('click', function() {
     var selectionType = $(this).prev().prev().text(); 
     var selectionName = $(this).prev()[0].value; 
     var selectionLocation; 
@@ -86,18 +119,54 @@ $(document).ready(function() {
         return activity.name === selectionName; 
       })[0].place[0].location; 
     }
-    drawLocation(selectionLocation)
+    var thisMarker = drawLocation(selectionLocation, {name: selectionName, day: currentDay});
 
-    var node = '<div class="itinerary-item"><span class="title">' + selectionName +'</span><button class="btn btn-xs btn-danger remove btn-circle">x</button></div>'; 
+    //change div to li
+    var node = '<div class="itinerary-item"><span class="title">' + selectionName +'</span><button class="btn btn-xs btn-danger remove btn-circle" data='+thisMarker.name+'>x</button></div>'; 
     // add to the current days itinerary
-    if(selectionType === 'Hotels') {
-      $('#hotel-itin').append(node); 
-    } else if (selectionType === 'Restaurants') {
-      $('#restaurant-itin').append(node); 
-    } else {
-      $('#activity-itin').append(node);       
-    }
+    days[currentDay][selectionType].push(node);
+    drawDay(days[currentDay]);
   })
+
+
+  $('#itin').on('click', '.btn', function() {
+    var markerNameToRemove = $(this).prev()[0].textContent;
+    var indexWeWant = [];
+    markers.filter(function(marker, i) {
+      indexWeWant.push(i);
+      return marker.name === markerNameToRemove;
+    })[0].setMap(null);
+    markers.splice(indexWeWant[0], 1);
+    $(this).parent().remove();
+  })
+
+  $('.day-btn').last().on('click', function() {
+    $('.current-day').removeClass('current-day');
+    var newDayNumber =($(this).siblings().length+1);
+    var btnNode = '<button class="btn btn-circle day-btn current-day">'+newDayNumber+'</button>';
+    currentDay = newDayNumber - 1;
+    newDay();
+    $(this).before(btnNode);
+    drawDay(days[currentDay]);
+    updateDayHeader();
+  })
+
+  $('.day-buttons').on('click', '.day-btn', function() {
+    // console.log(this.innerText);
+    if(this.innerText === '+') return;
+    $('.current-day').removeClass('current-day');
+    $(this).addClass('current-day');
+    currentDay = this.innerText - 1;
+    drawDay(days[currentDay]);
+    updateDayHeader();
+  })
+
+  $('#day-title').find('.remove').on('click', function() {
+    days[currentDay] = {Hotels: [], Restaurants: [], Activities: []};
+    drawDay(days[currentDay]);
+  })
+
+
 });
 
 var styleArr = [{
