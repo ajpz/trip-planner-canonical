@@ -209,7 +209,7 @@ $(document).ready(function() {
     if(category === 'hotel') category = 'Hotels'; 
     else if (category === 'restaurant') category = 'Restaurants'; 
     else category = 'Activities'; 
-    var indexWeWant = [];
+    var indexWeWant = []; 
     markers.filter(function(marker, i) {
       if(marker.name === markerNameToRemove) indexWeWant.push(i);
       return marker.name === markerNameToRemove;
@@ -223,9 +223,9 @@ $(document).ready(function() {
   })
 
   //add day
-  $('.day-btn').last().on('click', function() {
+  $('#adder').on('click', function() {
     $('.current-day').removeClass('current-day');
-    var newDayNumber =($(this).siblings().length+1);
+    var newDayNumber =($(this).siblings().length);
     var btnNode = '<button class="btn btn-circle day-btn current-day">'+newDayNumber+'</button>';
     currentDay = newDayNumber - 1;
     newDay();
@@ -235,10 +235,51 @@ $(document).ready(function() {
     showMarkersForCurrentDay(); 
   })
 
+  $('#swapper').on('click', function() {
+    $(this).parent().append("<p class='tempForm'>Input Days to Swap, then Press Submit</p>");
+    $(this).parent().append("<textarea class='tempForm' id='firstDaySwap' rows='1' cols='10'>Swap Me</textarea>");
+    $(this).parent().append("<textarea class='tempForm' id='secondDaySwap' rows='1' cols='10'>Swap Me</textarea>");
+    $(this).parent().append("<button class='tempForm' class='btn' id='submitter'>Submit</button>");
+    $('.day-buttons').on('click', '#submitter', function() {
+      var numDay1 = $('#firstDaySwap')[0].value;
+      var numDay2 = $('#secondDaySwap')[0].value;
+      if(isNaN(numDay1) || isNaN(numDay2) || numDay1 === numDay2 || numDay1 < 1 || numDay2 < 2 || numDay1 > days.length || numDay2 > days.length) {
+        alert("You must provide valid numbers for swapping!");
+        $('.tempForm').remove();
+      } else {
+        swapDays(numDay1, numDay2);
+      }
+    });
+  })
+
+  var swapDays = function(numberOfDay1, numberOfDay2) {
+    var tempStorage = days[numberOfDay1 - 1];
+    days[numberOfDay1 - 1] = days[numberOfDay2 - 1];
+    days[numberOfDay2 - 1] = tempStorage;
+    markers.forEach(function(marker) {
+      if(marker.day === numberOfDay1 - 1) {
+        marker.day = 'x';
+      }
+    })
+    markers.forEach(function(marker) {
+      if(marker.day === numberOfDay2 - 1) {
+        marker.day = numberOfDay1 - 1;
+      }
+    })
+    markers.forEach(function(marker) {
+      if(marker.day === 'x') {
+        marker.day = numberOfDay2 - 1;
+      }
+    })
+    drawDay(days[currentDay]);
+    showMarkersForCurrentDay();
+    $('.tempForm').remove();
+  }
+
   //switching days
   $('.day-buttons').on('click', '.day-btn', function() {
     // console.log(this.innerText);
-    if(this.innerText === '+') return;
+    if(this.innerText === '+' || this.innerText === 'S') return;
     $('.current-day').removeClass('current-day');
     $(this).addClass('current-day');
     currentDay = this.innerText - 1;
